@@ -1,16 +1,45 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
-app = FastAPI(title="Smart Home Hardware API", version="1.0")
+from .database import engine, SessionLocal, Base
+from .models import UserModel, DeviceModel
 
-# Centralna baza stanja uređaja i senzora
-devices_state: Dict[str, Dict[str, Any]] = {
-    "env_sensor_1": {"type": "temperature_humidity", "temperature": 22.0, "humidity": 45.0},
-    "motion_sensor_1": {"type": "motion", "motion_detected": False, "last_active": None},
-    "nfc_reader_1": {"type": "nfc", "last_tag": None, "access_granted": False},
-    "camera_1": {"type": "camera", "status": "IDLE", "last_snapshot": None}
-}
+# Inicijalizacija tabela u bazi
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Smart Home API with SQLite", version="1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Dependency za dobijanje sesije baze
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# Pydantic šeme
+class UserCreate(BaseModel):
+    username: str
+    email: Optional[str] = None
+    password: str
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
 
 class SensorUpdate(BaseModel):
@@ -22,46 +51,89 @@ class SensorUpdate(BaseModel):
     snapshot_url: Optional[str] = None
 
 
+# Automatsko kreiranje inicijalnih uređaja u bazi ako ne postoje
+@app.on_event("startup")
+def startup_db():
+    db = SessionLocal()
+    initial_devices = [
+        {"id": "env_sensor_1", "type": "temperature_humidity", "temperature": 22.0, "humidity": 45.0},
+        {"id": "motion_sensor_1", "type": "motion", "motion_detected": False},
+        {"id": "nfc_reader_1", "type": "nfc", "last_tag": None, "access_granted": False},
+        {"id": "camera_1", "type": "camera", "status": "IDLE", "last_snapshot": None}
+    ]
+    for dev in initial_devices:
+        exists = db.query(DeviceModel).filter(DeviceModel.id == dev["id"]).first()
+        if not exists:
+            db_dev = DeviceModel(**dev)
+            db.add(db_dev)
+    db.commit()
+    db.close()
+
+
+# --- KORISNICI (REGISTRACIJA I LOGIN) ---
+
+@app.post("/users/")
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Korisničko ime već postoji.")
+
+    new_user = UserModel(username=user.username, email=user.email, password=user.password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message": "Korisnik uspešno registrovan", "username": new_user.username}
+
+
+@app.post("/login/")
+def login_user(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(UserModel).filter(UserModel.username == user.username,
+                                         UserModel.password == user.password).first()
+    if not db_user:
+        raise HTTPException(status_code=401, detail="Pogrešno korisničko ime ili lozinka.")
+    return {"message": "Uspešna prijava", "username": db_user.username}
+
+
+# --- UREĐAJI I SENZORI ---
+
 @app.get("/devices/")
-def get_all_devices():
-    return devices_state
+def get_all_devices(db: Session = Depends(get_db)):
+    devices = db.query(DeviceModel).all()
+    devices_dict = {}
+    for dev in devices:
+        devices_dict[dev.id] = {
+            "type": dev.type,
+            "temperature": dev.temperature,
+            "humidity": dev.humidity,
+            "motion_detected": dev.motion_detected,
+            "last_tag": dev.last_tag,
+            "access_granted": dev.access_granted,
+            "status": dev.status,
+            "last_snapshot": dev.last_snapshot
+        }
+    return devices_dict
 
 
 @app.put("/devices/{device_id}")
-def update_device_data(device_id: str, update: SensorUpdate):
-    if device_id not in devices_state:
+def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depends(get_db)):
+    device = db.query(DeviceModel).filter(DeviceModel.id == device_id).first()
+    if not device:
         raise HTTPException(status_code=404, detail="Uređaj nije pronađen")
 
-    device = devices_state[device_id]
-
-    # Ažuriranje senzora temperature i vlažnosti
     if update.temperature is not None:
-        device["temperature"] = update.temperature
+        device.temperature = update.temperature
     if update.humidity is not None:
-        device["humidity"] = update.humidity
-
-    # Ažuriranje senzora pokreta (uz automatsku logiku)
+        device.humidity = update.humidity
     if update.motion_detected is not None:
-        device["motion_detected"] = update.motion_detected
-        if update.motion_detected:
-            print(f"[AUTOMATIZACIJA] Pokret detektovan na {device_id}! Paljenje sigurnosnog svetla...")
-
-    # Ažuriranje NFC čitača za pristup
+        device.motion_detected = update.motion_detected
     if update.tag_id is not None:
-        device["last_tag"] = update.tag_id
-        # Provera da li je tag dozvoljen (npr. "ADMIN_CARD_123")
-        if update.tag_id == "ADMIN_CARD_123":
-            device["access_granted"] = True
-            print(f"[PRISTUP] NFC Tag {update.tag_id} odobren. Otvaranje brave.")
-        else:
-            device["access_granted"] = False
-            print(f"[PRISTUP] Nepoznat NFC Tag {update.tag_id}. Pristup odbijen!")
-
-    # Ažuriranje kamere
+        device.last_tag = update.tag_id
+        device.access_granted = (update.tag_id == "ADMIN_CARD_123")
     if update.camera_status is not None:
-        device["status"] = update.camera_status
+        device.status = update.camera_status
     if update.snapshot_url is not None:
-        device["last_snapshot"] = update.snapshot_url
-        print(f"[KAMERA] Nova fotografija sa kamere: {update.snapshot_url}")
+        device.last_snapshot = update.snapshot_url
 
-    return {"message": "Uspesno ažurirano", "device": device}
+    db.commit()
+    db.refresh(device)
+    return {"message": "Uspešno ažurirano u bazi", "device_id": device.id}
