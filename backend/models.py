@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
 from .database import Base
 
 class UserModel(Base):
@@ -21,3 +22,20 @@ class DeviceModel(Base):
     access_granted = Column(Boolean, nullable=True)
     status = Column(String, nullable=True)
     last_snapshot = Column(String, nullable=True)
+
+class SensorLogModel(Base):
+    __tablename__ = "sensor_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(String, index=True)
+    temperature = Column(Float, nullable=True)
+    humidity = Column(Float, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class AccessLogModel(Base):
+    __tablename__ = "access_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tag_id = Column(String)
+    access_granted = Column(Boolean)
+    timestamp = Column(DateTime, default=datetime.utcnow)

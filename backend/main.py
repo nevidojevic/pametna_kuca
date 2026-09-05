@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
@@ -5,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .database import engine, SessionLocal, Base
-from .models import UserModel, DeviceModel
+from .models import UserModel, DeviceModel, AccessLogModel, SensorLogModel
 
 # Inicijalizacija tabela u bazi
 Base.metadata.create_all(bind=engine)
@@ -124,11 +125,31 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
         device.temperature = update.temperature
     if update.humidity is not None:
         device.humidity = update.humidity
+
+    # Automatski upis u istoriju temperature i vlažnosti
+    if update.temperature is not None or update.humidity is not None:
+        sensor_log = SensorLogModel(
+            device_id=device_id,
+            temperature=update.temperature,
+            humidity=update.humidity
+        )
+        db.add(sensor_log)
+
     if update.motion_detected is not None:
         device.motion_detected = update.motion_detected
+
     if update.tag_id is not None:
         device.last_tag = update.tag_id
-        device.access_granted = (update.tag_id == "ADMIN_CARD_123")
+        access_allowed = (update.tag_id == "ADMIN_CARD_123")
+        device.access_granted = access_allowed
+
+        # Automatski upis u istoriju pristupa (NFC / vrata)
+        access_log = AccessLogModel(
+            tag_id=update.tag_id,
+            access_granted=access_allowed
+        )
+        db.add(access_log)
+
     if update.camera_status is not None:
         device.status = update.camera_status
     if update.snapshot_url is not None:
@@ -137,3 +158,16 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
     db.commit()
     db.refresh(device)
     return {"message": "Uspešno ažurirano u bazi", "device_id": device.id}
+
+@app.get("/history/temperature/")
+def get_temperature_history(db: Session = Depends(get_db)):
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    logs = db.query(SensorLogModel).filter(SensorLogModel.timestamp >= week_ago).all()
+    # Možeš vratiti sirove podatke ili izračunati min/max po danima
+    return [{"temperature": l.temperature, "humidity": l.humidity, "time": l.timestamp.strftime("%Y-%m-%d %H:%M")} for l in logs]
+
+@app.get("/history/nfc/")
+def get_nfc_history(db: Session = Depends(get_db)):
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    logs = db.query(AccessLogModel).filter(AccessLogModel.timestamp >= week_ago).all()
+    return [{"tag_id": l.tag_id, "access_granted": l.access_granted, "time": l.timestamp.strftime("%Y-%m-%d %H:%M")} for l in logs]
