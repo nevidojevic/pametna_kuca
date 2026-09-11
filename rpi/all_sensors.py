@@ -136,8 +136,6 @@ def monitor_flame():
 # RFID ČITAČ (MFRC522, SPI, RST -> GPIO25)
 # ==========================================
 
-rfid_reader = SimpleMFRC522()
-
 RFID_UNLOCK_DURATION = 5  # sekundi koliko vrata ostaju "otključana" pre auto-zaključavanja
 
 
@@ -145,7 +143,10 @@ def monitor_rfid():
     print("Prislonite RFID karticu...")
     while True:
         try:
-            id, text = rfid_reader.read()  # Čeka dok se kartica ne prisloni
+            # Sveža instanca pre svakog čitanja - neki RC522 moduli se "zaglave"
+            # posle prvog uspešnog čitanja ako se ne re-inicijalizuju registri.
+            reader = SimpleMFRC522()
+            id, text = reader.read()  # Čeka dok se kartica ne prisloni
             tag_id = str(id)
             print(f"Očitana RFID kartica ID: {tag_id}")
 
@@ -155,6 +156,7 @@ def monitor_rfid():
 
             requests.put(RFID_API_URL, json={"access_granted": False}, timeout=5)
             print("RFID -> Vrata automatski zaključana")
+            print("Prislonite RFID karticu...")
 
         except requests.RequestException as error:
             print(f"Greška ka serveru: {error}")
