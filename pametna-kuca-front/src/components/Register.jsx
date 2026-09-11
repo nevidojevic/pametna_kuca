@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
+import { API_URL } from '../config';
 
 function Register({ onSwitchToLogin, onRegisterSuccess }) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const API_URL = "http://127.0.0.1:8000";
 
   const handleRegister = async (e) => {
     e.preventDefault();

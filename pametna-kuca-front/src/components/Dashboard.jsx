@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../config';
 
 function Dashboard({ onLogout }) {
   const [devices, setDevices] = useState({});
-  // Backend radi na Raspberry Pi-ju - upiši njegovu IP adresu (proveri sa "hostname -I" na RPi-ju)
-  const API_URL = "http://172.20.222.234:8000";
 
   const fetchDevices = async () => {
     try {
