@@ -1,0 +1,23 @@
+cd "pametna_kuca"
+pip install -r requirements.txt
+
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+git clone https://github.com/nevidojevic/pametna_kuca.git
+cd pametna_kuca
+
+cd pametna_kuca
+git pull
+
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
+pip install adafruit-circuitpython-dht requests gpiozero mfrc522 RPi.GPIO opencv-python
+
+
+python rpi/dht_sensor.py
+
+python rpi/rfid_reader.py
+
+cd pametna-kuca-front
+npm install
+npm run dev
