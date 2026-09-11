@@ -52,20 +52,6 @@ def simulate_rfid_access():
         print("Greška ka serveru:", e)
 
 
-def simulate_camera():
-    # Simulacija kamere koja detektuje pristup i pravi snimak
-    statuses = ["IDLE", "RECORDING", "MOTION_SNAPSHOT"]
-    status = random.choice(statuses)
-    snapshot = f"/snapshots/img_{int(time.time())}.jpg" if status == "MOTION_SNAPSHOT" else None
-
-    payload = {"camera_status": status, "snapshot_url": snapshot}
-    try:
-        requests.put(f"{API_URL}/camera_1", json=payload)
-        print(f"[Kamera] Status: {status}")
-    except Exception as e:
-        print("Greška ka serveru:", e)
-
-
 if __name__ == "__main__":
     print("Pokretanje simulacije hardvera (Raspberry Pi emulator)... Pritisnite Ctrl+C za izlaz.")
     while True:
@@ -73,11 +59,9 @@ if __name__ == "__main__":
         simulate_motion()
         simulate_flame()
 
-        # Povremeno simuliraj RFID i kameru (ne u svakom ciklusu)
+        # Povremeno simuliraj RFID (ne u svakom ciklusu)
         if random.random() > 0.6:
             simulate_rfid_access()
-        if random.random() > 0.5:
-            simulate_camera()
 
         print("-" * 40)
         time.sleep(5)  # Šalje podatke na svakih 5 sekundi

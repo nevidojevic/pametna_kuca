@@ -50,8 +50,6 @@ class SensorUpdate(BaseModel):
     flame_detected: Optional[bool] = None
     tag_id: Optional[str] = None
     access_granted: Optional[bool] = None
-    camera_status: Optional[str] = None
-    snapshot_url: Optional[str] = None
 
 
 # Automatsko kreiranje inicijalnih uređaja u bazi ako ne postoje
@@ -63,7 +61,6 @@ def startup_db():
         {"id": "motion_sensor_1", "type": "motion", "motion_detected": False},
         {"id": "flame_sensor_1", "type": "flame", "flame_detected": False},
         {"id": "rfid_reader_1", "type": "rfid", "last_tag": None, "access_granted": False},
-        {"id": "camera_1", "type": "camera", "status": "IDLE", "last_snapshot": None}
     ]
     for dev in initial_devices:
         exists = db.query(DeviceModel).filter(DeviceModel.id == dev["id"]).first()
@@ -110,11 +107,10 @@ def get_all_devices(db: Session = Depends(get_db)):
             "temperature": dev.temperature,
             "humidity": dev.humidity,
             "motion_detected": dev.motion_detected,
+            "last_motion_at": dev.last_motion_at.strftime("%Y-%m-%d %H:%M:%S") if dev.last_motion_at else None,
             "flame_detected": dev.flame_detected,
             "last_tag": dev.last_tag,
             "access_granted": dev.access_granted,
-            "status": dev.status,
-            "last_snapshot": dev.last_snapshot
         }
     return devices_dict
 
@@ -141,6 +137,8 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
 
     if update.motion_detected is not None:
         device.motion_detected = update.motion_detected
+        if update.motion_detected:
+            device.last_motion_at = datetime.utcnow()
 
     if update.flame_detected is not None:
         device.flame_detected = update.flame_detected
@@ -158,11 +156,6 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
         db.add(access_log)
     elif update.access_granted is not None:
         device.access_granted = update.access_granted
-
-    if update.camera_status is not None:
-        device.status = update.camera_status
-    if update.snapshot_url is not None:
-        device.last_snapshot = update.snapshot_url
 
     db.commit()
     db.refresh(device)

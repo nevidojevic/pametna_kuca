@@ -7,13 +7,6 @@ from gpiozero import MotionSensor, DigitalInputDevice
 import RPi.GPIO as GPIO
 from mfrc522 import SimpleMFRC522
 
-try:
-    import cv2
-    CAMERA_AVAILABLE = True
-except ImportError:
-    CAMERA_AVAILABLE = False
-    print("Upozorenje: opencv-python (cv2) nije dostupan, kamera je isključena.")
-
 
 # ==========================================
 # FASTAPI SERVER
@@ -23,7 +16,6 @@ ENV_API_URL = "http://127.0.0.1:8000/devices/env_sensor_1"
 MOTION_API_URL = "http://127.0.0.1:8000/devices/motion_sensor_1"
 FLAME_API_URL = "http://127.0.0.1:8000/devices/flame_sensor_1"
 RFID_API_URL = "http://127.0.0.1:8000/devices/rfid_reader_1"
-CAMERA_API_URL = "http://127.0.0.1:8000/devices/camera_1"
 
 
 # ==========================================
@@ -66,7 +58,7 @@ def read_dht():
 
 
 # ==========================================
-# PIR SENZOR (+ okidanje kamere)
+# PIR SENZOR
 # DATA -> GPIO22
 # ==========================================
 
@@ -92,16 +84,17 @@ def monitor_pir():
     motion_sent = False
 
     while True:
-        if pir.is_active:
-            last_motion_time = time.time()
-            if not motion_sent:
-                send_motion(True)
-                motion_sent = True
-                if CAMERA_AVAILABLE:
-                    take_snapshot()
-        elif motion_sent and time.time() - last_motion_time >= MOTION_TIMEOUT:
-            send_motion(False)
-            motion_sent = False
+        try:
+            if pir.is_active:
+                last_motion_time = time.time()
+                if not motion_sent:
+                    send_motion(True)
+                    motion_sent = True
+            elif motion_sent and time.time() - last_motion_time >= MOTION_TIMEOUT:
+                send_motion(False)
+                motion_sent = False
+        except Exception as error:
+            print(f"Greška PIR senzora: {error}")
 
         time.sleep(0.5)
 
@@ -128,11 +121,15 @@ def send_flame_status(detected):
 
 def monitor_flame():
     while True:
-        flame_sensor.wait_for_active()
-        send_flame_status(True)
+        try:
+            flame_sensor.wait_for_active()
+            send_flame_status(True)
 
-        flame_sensor.wait_for_inactive()
-        send_flame_status(False)
+            flame_sensor.wait_for_inactive()
+            send_flame_status(False)
+        except Exception as error:
+            print(f"Greška senzora plamena: {error}")
+            time.sleep(1)
 
 
 # ==========================================
@@ -164,31 +161,6 @@ def monitor_rfid():
 
         except Exception as error:
             print(f"Greška RFID čitača: {error}")
-
-
-# ==========================================
-# KAMERA (okida se pri detekciji pokreta)
-# ==========================================
-
-def take_snapshot():
-    cap = cv2.VideoCapture(0)
-    ret, frame = cap.read()
-
-    if ret:
-        filename = f"/tmp/snapshot_{int(time.time())}.jpg"
-        cv2.imwrite(filename, frame)
-        print(f"Fotografija sačuvana: {filename}")
-
-        try:
-            requests.put(
-                CAMERA_API_URL,
-                json={"camera_status": "MOTION_SNAPSHOT", "snapshot_url": filename},
-                timeout=5
-            )
-        except requests.RequestException as error:
-            print(f"Greška ka serveru: {error}")
-
-    cap.release()
 
 
 # ==========================================

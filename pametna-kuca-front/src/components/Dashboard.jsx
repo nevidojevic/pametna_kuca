@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { API_URL } from '../config';
+
+const MAX_CHART_POINTS = 20;
 
 function Dashboard({ onLogout, onShowHistory }) {
   const [devices, setDevices] = useState({});
+  const [chartData, setChartData] = useState([]);
 
   const fetchDevices = async () => {
     try {
-      console.log("Pokušavam da preuzmem uređaje...");
       const response = await fetch(`${API_URL}/devices/`);
       const data = await response.json();
-      console.log("Uspešno preuzeti podaci:", data);
       setDevices(data);
+
+      const env = data.env_sensor_1;
+      if (env && env.temperature != null) {
+        const point = {
+          time: new Date().toLocaleTimeString(),
+          temperature: env.temperature,
+          humidity: env.humidity
+        };
+        setChartData((prev) => [...prev, point].slice(-MAX_CHART_POINTS));
+      }
     } catch (error) {
       console.error("Greška pri učitavanju uređaja:", error);
     }
@@ -46,6 +58,21 @@ function Dashboard({ onLogout, onShowHistory }) {
                 <div>
                   <p>🌡️ Temperatura: <strong>{info.temperature}°C</strong></p>
                   <p>💧 Vlažnost: <strong>{info.humidity}%</strong></p>
+
+                  {chartData.length > 1 && (
+                    <div style={{ width: '100%', height: 200, marginTop: '10px' }}>
+                      <ResponsiveContainer>
+                        <LineChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="time" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="temperature" stroke="#e74c3c" name="Temperatura (°C)" dot={false} isAnimationActive={false} />
+                          <Line type="monotone" dataKey="humidity" stroke="#3498db" name="Vlažnost (%)" dot={false} isAnimationActive={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -55,6 +82,9 @@ function Dashboard({ onLogout, onShowHistory }) {
                   <p>🏃 Status pokreta: <span style={{ color: info.motion_detected ? 'red' : 'green' }}>
                     {info.motion_detected ? "DETEKTOVAN POKRET 🚨" : "Sve mirno 🟢"}
                   </span></p>
+                  <p style={{ fontSize: '13px', color: '#666' }}>
+                    Poslednji pokret: {info.last_motion_at || "Nema zabeleženih pokreta"}
+                  </p>
                 </div>
               )}
 
@@ -74,16 +104,6 @@ function Dashboard({ onLogout, onShowHistory }) {
                     {info.access_granted ? "OTKLJUČANO 🔓" : "ZAKLJUČANO 🔒"}
                   </strong></p>
                   <p style={{ fontSize: '13px', color: '#666' }}>Poslednji tag: {info.last_tag || "Nema očitavanja"}</p>
-                </div>
-              )}
-
-              {/* 5. Kamera */}
-              {info.type === 'camera' && (
-                <div>
-                  <p>📷 Status kamere: <strong>{info.status}</strong></p>
-                  {info.last_snapshot && (
-                    <p style={{ fontSize: '13px' }}>Poslednji snimak: {info.last_snapshot}</p>
-                  )}
                 </div>
               )}
             </div>

@@ -6,7 +6,7 @@
 
 Pametna Kuća predstavlja IoT sistem za nadzor stanja u domu korišćenjem Raspberry Pi mikroračunara.
 
-Sistem prikuplja podatke sa više senzora (temperatura, vlažnost, pokret, RFID kartica, kamera) i šalje ih na centralni FastAPI server koji ih čuva u SQLite bazi. Podaci su dostupni preko REST API-ja u JSON formatu i prikazuju se uživo na React web dashboard-u.
+Sistem prikuplja podatke sa više senzora (temperatura, vlažnost, pokret, RFID kartica) i šalje ih na centralni FastAPI server koji ih čuva u SQLite bazi. Podaci su dostupni preko REST API-ja u JSON formatu i prikazuju se uživo na React web dashboard-u, uključujući live grafik temperature/vlažnosti.
 
 ---
 
@@ -15,9 +15,10 @@ Sistem prikuplja podatke sa više senzora (temperatura, vlažnost, pokret, RFID 
 - Očitavanje temperature i vlažnosti vazduha (DHT11)
 - Detekcija pokreta u prostoriji (PIR senzor)
 - Detekcija plamena (senzor plamena)
-- Kontrola pristupa ulaznim vratima putem RFID kartice
-- Snimanje fotografije pri detekciji pokreta (kamera)
+- Kontrola pristupa ulaznim vratima putem RFID kartice (automatsko zaključavanje posle 5s)
+- Beleženje tačnog vremena poslednjeg registrovanog pokreta
 - Automatsko čuvanje istorije temperature/vlažnosti i pristupa u bazi
+- Live grafik temperature i vlažnosti na dashboard-u
 - Registracija i prijava korisnika
 - Prikaz stanja svih uređaja uživo na web dashboard-u (osvežavanje na 3s)
 
@@ -33,7 +34,6 @@ Sistem prikuplja podatke sa više senzora (temperatura, vlažnost, pokret, RFID 
 | Senzor plamena | Detekcija plamena (digitalni izlaz) | 1 |
 | RFID čitač MFRC522 | Kontrola pristupa (13.56 MHz, Mifare kartice) | 1 |
 | RFID kartica/privezak | Za prislanjanje na čitač | 1+ |
-| Kamera (USB ili Pi Camera) | Snimanje fotografije pri pokretu | 1 |
 | Proto ploča | Za povezivanje elektronskih elemenata | 1 |
 | Kablovi | Muško-Ženski | 5+ |
 | Kablovi | Muško-Muški | 3+ |
@@ -43,11 +43,11 @@ Sistem prikuplja podatke sa više senzora (temperatura, vlažnost, pokret, RFID 
 ## Arhitektura sistema
 
 ```
-DHT11 senzor   PIR senzor   Senzor plamena   RFID čitač (MFRC522)   Kamera
-      │             │              │                  │                │
-      └──────┬──────┘              │                  │                │
-             ▼                     ▼                  ▼                ▼
-              Raspberry Pi (jedna skripta: rpi/all_sensors.py)
+DHT11 senzor   PIR senzor   Senzor plamena   RFID čitač (MFRC522)
+      │             │              │                  │
+      └──────┬──────┘              │                  │
+             ▼                     ▼                  ▼
+       Raspberry Pi (jedna skripta: rpi/all_sensors.py)
                               │
                      HTTP PUT (JSON) preko LAN/WiFi
                               ▼
@@ -100,21 +100,16 @@ RPi ne komunicira direktno sa frontendom — svaka skripta gura svoje podatke na
 | VCC | 5V |
 | GND | GND |
 
-### Kamera
-
-USB kamera preko USB porta, ili Pi Camera modul preko CSI konektora.
-
 ---
 
 ## Prikaz uređaja i njihovih stanja
 
 | Uređaj (id) | Tip | Prikazano stanje |
 |-------------|-----|-------------------|
-| `env_sensor_1` | `temperature_humidity` | Temperatura (°C) i vlažnost (%) |
-| `motion_sensor_1` | `motion` | "Sve mirno 🟢" / "Detektovan pokret 🚨" |
+| `env_sensor_1` | `temperature_humidity` | Temperatura (°C) i vlažnost (%) + live grafik |
+| `motion_sensor_1` | `motion` | "Sve mirno 🟢" / "Detektovan pokret 🚨" + tačno vreme poslednjeg pokreta |
 | `flame_sensor_1` | `flame` | "Nema plamena 🟢" / "OPASNOST - DETEKTOVAN PLAMEN 🚨" |
 | `rfid_reader_1` | `rfid` | "Otključano 🔓" / "Zaključano 🔒" + poslednji očitani tag |
-| `camera_1` | `camera` | `IDLE` / `RECORDING` / `MOTION_SNAPSHOT` + putanja poslednjeg snimka |
 
 ---
 
@@ -128,15 +123,15 @@ Kada RFID čitač pošalje `tag_id` backendu, server upoređuje ga sa ovlašćen
 access_allowed = (update.tag_id == "454268117939")
 ```
 
-Rezultat (`access_granted`) se upisuje na uređaj i u `access_logs` istoriju, tako da se svako prislanjanje kartice može naknadno proveriti kroz `GET /history/rfid/`.
+Rezultat (`access_granted`) se upisuje na uređaj i u `access_logs` istoriju, tako da se svako prislanjanje kartice može naknadno proveriti kroz `GET /history/rfid/`. Vrata se automatski "zaključavaju" (`access_granted: false`) 5 sekundi nakon uspešnog očitavanja.
 
 ### Istorija temperature i vlažnosti
 
-Svaki put kad DHT11 pošalje nove vrednosti, backend ih upisuje i u trenutno stanje uređaja i u `sensor_logs` tabelu, tako da `GET /history/temperature/` može da vrati podatke za poslednjih 7 dana.
+Svaki put kad DHT11 pošalje nove vrednosti, backend ih upisuje i u trenutno stanje uređaja i u `sensor_logs` tabelu, tako da `GET /history/temperature/` može da vrati podatke za poslednjih 7 dana. Dashboard dodatno iscrtava live grafik poslednjih očitavanja (bez pozivanja `/history/` endpointa — gradi se iz redovnog osvežavanja na 3s).
 
-### Pokret i kamera
+### Pokret
 
-PIR senzor javlja početak/kraj pokreta (`motion_detected: true/false`). Kamera se automatski okida pri detekciji pokreta (unutar `rpi/all_sensors.py`) i sačuva snimak, a status se prikazuje na dashboard-u.
+PIR senzor javlja početak/kraj pokreta (`motion_detected: true/false`) i pri svakoj detekciji upisuje tačan trenutak (`last_motion_at`) koji se prikazuje na dashboard-u.
 
 ---
 
@@ -150,7 +145,6 @@ Raspberry Pi ne prima podatke od servera — on ih **šalje**. Sve skripte za se
 | PIR (pokret) | GPIO22 | `/devices/motion_sensor_1` |
 | Senzor plamena | GPIO6 | `/devices/flame_sensor_1` |
 | RFID čitač (MFRC522, SPI) | RST na GPIO25 | `/devices/rfid_reader_1` |
-| Kamera (okida se pri pokretu) | USB/CSI | `/devices/camera_1` |
 
 `rpi/simulator.py` ostaje odvojeno — simulira sve senzore bez hardvera, za testiranje.
 
@@ -180,7 +174,7 @@ npm run dev
 ```bash
 python3 -m venv --system-site-packages venv
 source venv/bin/activate
-pip install adafruit-circuitpython-dht requests gpiozero mfrc522 RPi.GPIO opencv-python
+pip install adafruit-circuitpython-dht requests gpiozero mfrc522 RPi.GPIO
 
 python rpi/all_sensors.py
 ```
@@ -196,10 +190,9 @@ Vraća stanje svih uređaja.
 ```json
 {
   "env_sensor_1": { "type": "temperature_humidity", "temperature": 22.4, "humidity": 48.0 },
-  "motion_sensor_1": { "type": "motion", "motion_detected": false },
+  "motion_sensor_1": { "type": "motion", "motion_detected": false, "last_motion_at": "2026-09-11 14:32:07" },
   "flame_sensor_1": { "type": "flame", "flame_detected": false },
-  "rfid_reader_1": { "type": "rfid", "last_tag": "123456789", "access_granted": true },
-  "camera_1": { "type": "camera", "status": "IDLE", "last_snapshot": null }
+  "rfid_reader_1": { "type": "rfid", "last_tag": "454268117939", "access_granted": true }
 }
 ```
 
@@ -214,8 +207,7 @@ Ažurira podatke jednog uređaja (koristi ga Raspberry Pi da pošalje očitanja 
 | `motion_detected` | bool | Da li je detektovan pokret |
 | `flame_detected` | bool | Da li je detektovan plamen |
 | `tag_id` | string | ID očitane RFID kartice |
-| `camera_status` | string | Status kamere |
-| `snapshot_url` | string | Putanja poslednjeg snimka |
+| `access_granted` | bool | Direktan upis pristupa (koristi se za auto-zaključavanje) |
 
 ### `GET /history/temperature/`
 
@@ -242,7 +234,7 @@ pametna_kuca/
 │   └── database.py      # Konekcija ka SQLite bazi
 │
 ├── rpi/
-│   ├── all_sensors.py    # Sve skripte za senzore u jednom fajlu (DHT11, PIR, plamen, RFID, kamera)
+│   ├── all_sensors.py    # Sve skripte za senzore u jednom fajlu (DHT11, PIR, plamen, RFID)
 │   └── simulator.py      # Simulacija svih senzora bez hardvera
 │
 ├── pametna-kuca-front/

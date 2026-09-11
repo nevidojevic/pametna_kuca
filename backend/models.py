@@ -18,11 +18,10 @@ class DeviceModel(Base):
     temperature = Column(Float, nullable=True)
     humidity = Column(Float, nullable=True)
     motion_detected = Column(Boolean, nullable=True)
+    last_motion_at = Column(DateTime, nullable=True)
     flame_detected = Column(Boolean, nullable=True)
     last_tag = Column(String, nullable=True)
     access_granted = Column(Boolean, nullable=True)
-    status = Column(String, nullable=True)
-    last_snapshot = Column(String, nullable=True)
 
 class SensorLogModel(Base):
     __tablename__ = "sensor_logs"
