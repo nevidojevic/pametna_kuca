@@ -2,7 +2,7 @@ from gpiozero import MotionSensor
 import requests
 import time
 
-API_URL = "http://IP_ADRESA_SERVERA:8000/devices/motion_sensor_1"
+API_URL = "http://127.0.0.1:8000/devices/motion_sensor_1"
 pir = MotionSensor(17)  # PIR senzor povezan na GPIO 17
 
 

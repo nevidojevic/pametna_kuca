@@ -10,8 +10,8 @@ from gpiozero import MotionSensor
 # FASTAPI SERVER
 # ==========================================
 
-ENV_API_URL = "http://172.20.222.204:8000/devices/env_sensor_1"
-MOTION_API_URL = "http://172.20.222.204:8000/devices/motion_sensor_1"
+ENV_API_URL = "http://127.0.0.1:8000/devices/env_sensor_1"
+MOTION_API_URL = "http://127.0.0.1:8000/devices/motion_sensor_1"
 
 
 # ==========================================

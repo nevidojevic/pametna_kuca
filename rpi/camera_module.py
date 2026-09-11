@@ -2,7 +2,7 @@ import cv2
 import requests
 import time
 
-API_URL = "http://IP_ADRESA_SERVERA:8000/devices/camera_1"
+API_URL = "http://127.0.0.1:8000/devices/camera_1"
 
 
 def take_snapshot():
