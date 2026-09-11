@@ -47,6 +47,7 @@ class SensorUpdate(BaseModel):
     temperature: Optional[float] = None
     humidity: Optional[float] = None
     motion_detected: Optional[bool] = None
+    flame_detected: Optional[bool] = None
     tag_id: Optional[str] = None
     camera_status: Optional[str] = None
     snapshot_url: Optional[str] = None
@@ -59,6 +60,7 @@ def startup_db():
     initial_devices = [
         {"id": "env_sensor_1", "type": "temperature_humidity", "temperature": 22.0, "humidity": 45.0},
         {"id": "motion_sensor_1", "type": "motion", "motion_detected": False},
+        {"id": "flame_sensor_1", "type": "flame", "flame_detected": False},
         {"id": "rfid_reader_1", "type": "rfid", "last_tag": None, "access_granted": False},
         {"id": "camera_1", "type": "camera", "status": "IDLE", "last_snapshot": None}
     ]
@@ -107,6 +109,7 @@ def get_all_devices(db: Session = Depends(get_db)):
             "temperature": dev.temperature,
             "humidity": dev.humidity,
             "motion_detected": dev.motion_detected,
+            "flame_detected": dev.flame_detected,
             "last_tag": dev.last_tag,
             "access_granted": dev.access_granted,
             "status": dev.status,
@@ -137,6 +140,9 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
 
     if update.motion_detected is not None:
         device.motion_detected = update.motion_detected
+
+    if update.flame_detected is not None:
+        device.flame_detected = update.flame_detected
 
     if update.tag_id is not None:
         device.last_tag = update.tag_id

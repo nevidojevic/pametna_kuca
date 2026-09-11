@@ -18,6 +18,7 @@ class DeviceModel(Base):
     temperature = Column(Float, nullable=True)
     humidity = Column(Float, nullable=True)
     motion_detected = Column(Boolean, nullable=True)
+    flame_detected = Column(Boolean, nullable=True)
     last_tag = Column(String, nullable=True)
     access_granted = Column(Boolean, nullable=True)
     status = Column(String, nullable=True)

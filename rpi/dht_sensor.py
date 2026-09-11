@@ -66,6 +66,8 @@ def read_dht():
 
 pir = MotionSensor(22)
 
+MOTION_TIMEOUT = 5  # sekundi bez pokreta pre nego što se javi "nema pokreta"
+
 
 def send_motion(detected):
     try:
@@ -87,12 +89,20 @@ def send_motion(detected):
 
 
 def monitor_pir():
-    while True:
-        pir.wait_for_motion()
-        send_motion(True)
+    last_motion_time = None
+    motion_sent = False
 
-        pir.wait_for_no_motion()
-        send_motion(False)
+    while True:
+        if pir.is_active:
+            last_motion_time = time.time()
+            if not motion_sent:
+                send_motion(True)
+                motion_sent = True
+        elif motion_sent and time.time() - last_motion_time >= MOTION_TIMEOUT:
+            send_motion(False)
+            motion_sent = False
+
+        time.sleep(0.5)
 
 
 # ==========================================

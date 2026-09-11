@@ -29,6 +29,17 @@ def simulate_motion():
         print("Greška ka serveru:", e)
 
 
+def simulate_flame():
+    # Simulacija senzora plamena (retko detektuje plamen)
+    flame = random.random() < 0.1
+    payload = {"flame_detected": flame}
+    try:
+        requests.put(f"{API_URL}/flame_sensor_1", json=payload)
+        print(f"[Plamen] Detektovan: {flame}")
+    except Exception as e:
+        print("Greška ka serveru:", e)
+
+
 def simulate_rfid_access():
     # Simulacija prislanjanja RFID kartice
     tags = ["ADMIN_CARD_123", "GUEST_CARD_999", "UNKNOWN_TAG"]
@@ -60,6 +71,7 @@ if __name__ == "__main__":
     while True:
         simulate_temperature_humidity()
         simulate_motion()
+        simulate_flame()
 
         # Povremeno simuliraj RFID i kameru (ne u svakom ciklusu)
         if random.random() > 0.6:

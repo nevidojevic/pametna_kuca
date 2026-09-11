@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import History from './components/History';
 
 function App() {
   const [currentView, setCurrentView] = useState('login'); 
@@ -23,8 +24,15 @@ function App() {
       )}
 
       {currentView === 'dashboard' && (
-        <Dashboard 
-          onLogout={() => setCurrentView('login')} 
+        <Dashboard
+          onLogout={() => setCurrentView('login')}
+          onShowHistory={() => setCurrentView('history')}
+        />
+      )}
+
+      {currentView === 'history' && (
+        <History
+          onBack={() => setCurrentView('dashboard')}
         />
       )}
     </div>

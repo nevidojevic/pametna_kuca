@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
 
-function Dashboard({ onLogout }) {
+function Dashboard({ onLogout, onShowHistory }) {
   const [devices, setDevices] = useState({});
 
   const fetchDevices = async () => {
@@ -26,7 +26,10 @@ function Dashboard({ onLogout }) {
     <div style={{ padding: '20px', fontFamily: 'Arial', maxWidth: '600px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Kontrolni Panel - Pametna Kuća</h2>
-        <button onClick={onLogout} style={{ padding: '5px 10px', cursor: 'pointer' }}>Odjavi se</button>
+        <div>
+          <button onClick={onShowHistory} style={{ padding: '5px 10px', cursor: 'pointer', marginRight: '8px' }}>Istorija</button>
+          <button onClick={onLogout} style={{ padding: '5px 10px', cursor: 'pointer' }}>Odjavi se</button>
+        </div>
       </div>
       <hr style={{ margin: '15px 0' }} />
 
@@ -55,7 +58,16 @@ function Dashboard({ onLogout }) {
                 </div>
               )}
 
-              {/* 3. RFID čitač (Ulazna vrata) */}
+              {/* 3. Senzor plamena */}
+              {info.type === 'flame' && (
+                <div>
+                  <p>🔥 Status: <strong style={{ color: info.flame_detected ? 'red' : 'green' }}>
+                    {info.flame_detected ? "OPASNOST - DETEKTOVAN PLAMEN 🚨" : "Nema plamena 🟢"}
+                  </strong></p>
+                </div>
+              )}
+
+              {/* 4. RFID čitač (Ulazna vrata) */}
               {info.type === 'rfid' && (
                 <div>
                   <p>🚪 Ulazna vrata: <strong style={{ color: info.access_granted ? 'green' : 'red' }}>
@@ -65,7 +77,7 @@ function Dashboard({ onLogout }) {
                 </div>
               )}
 
-              {/* 4. Kamera */}
+              {/* 5. Kamera */}
               {info.type === 'camera' && (
                 <div>
                   <p>📷 Status kamere: <strong>{info.status}</strong></p>
