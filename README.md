@@ -47,7 +47,7 @@ DHT11 senzor   PIR senzor   Senzor plamena   RFID čitač (MFRC522)   Kamera
       │             │              │                  │                │
       └──────┬──────┘              │                  │                │
              ▼                     ▼                  ▼                ▼
-       Raspberry Pi (Python skripte: dht_sensor.py, flame_sensor.py, rfid_reader.py, camera_module.py)
+              Raspberry Pi (jedna skripta: rpi/all_sensors.py)
                               │
                      HTTP PUT (JSON) preko LAN/WiFi
                               ▼
@@ -136,23 +136,25 @@ Svaki put kad DHT11 pošalje nove vrednosti, backend ih upisuje i u trenutno sta
 
 ### Pokret i kamera
 
-PIR senzor javlja početak/kraj pokreta (`motion_detected: true/false`). Kamera može da se pozove pri detekciji pokreta (`camera_module.py`) i sačuva snimak, a status se prikazuje na dashboard-u.
+PIR senzor javlja početak/kraj pokreta (`motion_detected: true/false`). Kamera se automatski okida pri detekciji pokreta (unutar `rpi/all_sensors.py`) i sačuva snimak, a status se prikazuje na dashboard-u.
 
 ---
 
-## Raspberry Pi aplikacije
+## Raspberry Pi aplikacija
 
-Raspberry Pi ne prima podatke od servera — on ih **šalje**. Svaka skripta iz `rpi/` foldera je zadužena za jedan ili više senzora i šalje HTTP `PUT` zahtev ka odgovarajućem uređaju:
+Raspberry Pi ne prima podatke od servera — on ih **šalje**. Sve skripte za senzore su objedinjene u **jednu skriptu**, [`rpi/all_sensors.py`](rpi/all_sensors.py), koja pokreće svaki senzor u svom `threading` nitu i šalje HTTP `PUT` zahtev ka odgovarajućem uređaju:
 
-| Skripta | Senzor(i) | Endpoint |
-|---------|-----------|----------|
-| `rpi/dht_sensor.py` | DHT11 + PIR (paralelno, preko `threading`) | `/devices/env_sensor_1`, `/devices/motion_sensor_1` |
-| `rpi/flame_sensor.py` | Senzor plamena (GPIO6) | `/devices/flame_sensor_1` |
-| `rpi/rfid_reader.py` | RFID čitač (MFRC522, RST na GPIO25) | `/devices/rfid_reader_1` |
-| `rpi/camera_module.py` | Kamera | `/devices/camera_1` |
-| `rpi/simulator.py` | Simulacija svih senzora (bez hardvera, za testiranje) | svi navedeni |
+| Senzor | GPIO | Endpoint |
+|--------|------|----------|
+| DHT11 (temperatura/vlažnost) | GPIO17 | `/devices/env_sensor_1` |
+| PIR (pokret) | GPIO22 | `/devices/motion_sensor_1` |
+| Senzor plamena | GPIO6 | `/devices/flame_sensor_1` |
+| RFID čitač (MFRC522, SPI) | RST na GPIO25 | `/devices/rfid_reader_1` |
+| Kamera (okida se pri pokretu) | USB/CSI | `/devices/camera_1` |
 
-Pre pokretanja bilo koje skripte na pravom RPi-ju, potrebno je zameniti `IP_ADRESA_SERVERA` u fajlu stvarnom LAN IP adresom računara na kom radi backend (detaljno opisano u [docs/rpi-povezivanje.md](docs/rpi-povezivanje.md)).
+`rpi/simulator.py` ostaje odvojeno — simulira sve senzore bez hardvera, za testiranje.
+
+Backend u skripti gleda `127.0.0.1` jer radi na istom RPi-ju kao i senzori (detaljno opisano u [docs/rpi-povezivanje.md](docs/rpi-povezivanje.md)).
 
 ---
 
@@ -173,17 +175,14 @@ npm install
 npm run dev
 ```
 
-### Raspberry Pi (svaka skripta u svom virtuelnom okruženju)
+### Raspberry Pi
 
 ```bash
-python3 -m venv --system-site-packages .
-source bin/activate
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
 pip install adafruit-circuitpython-dht requests gpiozero mfrc522 RPi.GPIO opencv-python
 
-python dht_sensor.py      # DHT11 + PIR
-python flame_sensor.py    # Senzor plamena
-python rfid_reader.py     # RFID čitač
-python camera_module.py   # Kamera (poziva se npr. po detekciji pokreta)
+python rpi/all_sensors.py
 ```
 
 ---
@@ -243,11 +242,7 @@ pametna_kuca/
 │   └── database.py      # Konekcija ka SQLite bazi
 │
 ├── rpi/
-│   ├── dht_sensor.py     # DHT11 + PIR (temperatura, vlažnost, pokret)
-│   ├── flame_sensor.py   # Senzor plamena
-│   ├── rfid_reader.py    # RFID čitač (MFRC522)
-│   ├── camera_module.py  # Kamera
-│   ├── motion_sensor.py  # Samostalna PIR skripta (alternativa dht_sensor.py)
+│   ├── all_sensors.py    # Sve skripte za senzore u jednom fajlu (DHT11, PIR, plamen, RFID, kamera)
 │   └── simulator.py      # Simulacija svih senzora bez hardvera
 │
 ├── pametna-kuca-front/
