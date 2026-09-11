@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
+import './App.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import History from './components/History';
 
 function App() {
-  const [currentView, setCurrentView] = useState('login'); 
+  const [currentView, setCurrentView] = useState('login');
 
   return (
-    <div>
+    <div className="shell">
       {currentView === 'login' && (
         <Login 
           onLogin={() => setCurrentView('dashboard')} 

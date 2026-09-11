@@ -17,7 +17,7 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
       const response = await fetch(`${API_URL}/users/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password }) // Dodato slanje lozinke
+        body: JSON.stringify({ username, email, password })
       });
 
       if (response.ok) {
@@ -34,41 +34,50 @@ function Register({ onSwitchToLogin, onRegisterSuccess }) {
   };
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '60px', fontFamily: 'Arial' }}>
-      <h2>Registracija - Pametna Kuća</h2>
-      <form onSubmit={handleRegister} style={{ display: 'inline-block', textAlign: 'left', border: '1px solid #ccc', padding: '20px', borderRadius: '5px' }}>
-        <div style={{ marginBottom: '10px' }}>
-          <label>Korisničko ime:</label><br />
-          <input 
-            type="text" 
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
-            style={{ padding: '6px', width: '220px', marginTop: '4px' }}
-          />
+    <div className="auth-screen">
+      <div className="auth-panel">
+        <div className="brand">
+          <span className="brand-dot" />
+          <span className="brand-name">Pametna kuća</span>
         </div>
-        <div style={{ marginBottom: '10px' }}>
-          <label>Email:</label><br />
-          <input 
-            type="email" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)} 
-            style={{ padding: '6px', width: '220px', marginTop: '4px' }}
-          />
-        </div>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Lozinka:</label><br />
-          <input 
-            type="password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            style={{ padding: '6px', width: '220px', marginTop: '4px' }}
-          />
-        </div>
-        <button type="submit" style={{ padding: '8px 15px', cursor: 'pointer', width: '100%', marginBottom: '10px' }}>Registruj se</button>
-        <p style={{ fontSize: '13px', textAlign: 'center', margin: '5px 0' }}>
-          Već imate nalog? <span onClick={onSwitchToLogin} style={{ color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}>Prijavite se</span>
+        <h1 className="auth-title">Registracija</h1>
+        <form onSubmit={handleRegister}>
+          <div className="field">
+            <label htmlFor="reg-username">Korisničko ime</label>
+            <input
+              id="reg-username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="reg-email">Email</label>
+            <input
+              id="reg-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="reg-password">Lozinka</label>
+            <input
+              id="reg-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </div>
+          <button type="submit" className="btn-primary">Registruj se</button>
+        </form>
+        <p className="auth-switch">
+          Već imate nalog? <button type="button" onClick={onSwitchToLogin}>Prijavite se</button>
         </p>
-      </form>
+      </div>
     </div>
   );
 }

@@ -26,66 +26,69 @@ function History({ onBack }) {
   }, []);
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial', maxWidth: '700px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Istorija podataka</h2>
-        <button onClick={onBack} style={{ padding: '5px 10px', cursor: 'pointer' }}>Nazad</button>
+    <div className="history">
+      <div className="history-header">
+        <h1 className="history-title">Istorija</h1>
+        <button className="btn-ghost" onClick={onBack}>Nazad</button>
       </div>
-      <hr style={{ margin: '15px 0' }} />
 
       {loading ? (
-        <p>Učitavanje istorije...</p>
+        <p className="loading-note">Učitavanje istorije...</p>
       ) : (
         <>
-          <h3>🌡️ Temperatura i vlažnost (poslednjih 7 dana)</h3>
-          {tempHistory.length === 0 ? (
-            <p>Nema zabeleženih podataka.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-                  <th style={{ padding: '6px' }}>Vreme</th>
-                  <th style={{ padding: '6px' }}>Temperatura</th>
-                  <th style={{ padding: '6px' }}>Vlažnost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...tempHistory].reverse().map((entry, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '6px' }}>{entry.time}</td>
-                    <td style={{ padding: '6px' }}>{entry.temperature != null ? `${entry.temperature}°C` : '-'}</td>
-                    <td style={{ padding: '6px' }}>{entry.humidity != null ? `${entry.humidity}%` : '-'}</td>
+          <div className="history-section">
+            <div className="history-section-title">Temperatura i vlažnost — poslednjih 7 dana</div>
+            {tempHistory.length === 0 ? (
+              <p className="history-empty">Nema zabeleženih podataka.</p>
+            ) : (
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>Vreme</th>
+                    <th>Temperatura</th>
+                    <th>Vlažnost</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {[...tempHistory].reverse().map((entry, i) => (
+                    <tr key={i}>
+                      <td>{entry.time}</td>
+                      <td>{entry.temperature != null ? `${entry.temperature}°C` : '—'}</td>
+                      <td>{entry.humidity != null ? `${entry.humidity}%` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
 
-          <h3>🚪 RFID pristup (poslednjih 7 dana)</h3>
-          {rfidHistory.length === 0 ? (
-            <p>Nema zabeleženih podataka.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-                  <th style={{ padding: '6px' }}>Vreme</th>
-                  <th style={{ padding: '6px' }}>Tag ID</th>
-                  <th style={{ padding: '6px' }}>Pristup</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...rfidHistory].reverse().map((entry, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '6px' }}>{entry.time}</td>
-                    <td style={{ padding: '6px' }}>{entry.tag_id}</td>
-                    <td style={{ padding: '6px', color: entry.access_granted ? 'green' : 'red' }}>
-                      {entry.access_granted ? 'Dozvoljen' : 'Odbijen'}
-                    </td>
+          <div className="history-section">
+            <div className="history-section-title">RFID pristup — poslednjih 7 dana</div>
+            {rfidHistory.length === 0 ? (
+              <p className="history-empty">Nema zabeleženih podataka.</p>
+            ) : (
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>Vreme</th>
+                    <th>Tag ID</th>
+                    <th>Pristup</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {[...rfidHistory].reverse().map((entry, i) => (
+                    <tr key={i}>
+                      <td>{entry.time}</td>
+                      <td>{entry.tag_id}</td>
+                      <td className={entry.access_granted ? 'access-granted' : 'access-denied'}>
+                        {entry.access_granted ? 'Dozvoljen' : 'Odbijen'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </>
       )}
     </div>

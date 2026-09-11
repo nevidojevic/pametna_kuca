@@ -32,32 +32,40 @@ function Login({ onLogin, onSwitchToRegister }) {
   };
 
   return (
-    <div style={{ textAlign: 'center', marginTop: '80px', fontFamily: 'Arial' }}>
-      <h2>Prijava - Pametna Kuća</h2>
-      <form onSubmit={handleSubmit} style={{ display: 'inline-block', textAlign: 'left', border: '1px solid #ccc', padding: '20px', borderRadius: '5px' }}>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Korisničko ime:</label><br />
-          <input 
-            type="text" 
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
-            style={{ padding: '6px', width: '220px', marginTop: '4px' }}
-          />
+    <div className="auth-screen">
+      <div className="auth-panel">
+        <div className="brand">
+          <span className="brand-dot" />
+          <span className="brand-name">Pametna kuća</span>
         </div>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Lozinka:</label><br />
-          <input 
-            type="password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            style={{ padding: '6px', width: '220px', marginTop: '4px' }}
-          />
-        </div>
-        <button type="submit" style={{ padding: '8px 15px', cursor: 'pointer', width: '100%', marginBottom: '10px' }}>Prijavi se</button>
-        <p style={{ fontSize: '13px', textAlign: 'center', margin: '5px 0' }}>
-          Nemate nalog? <span onClick={onSwitchToRegister} style={{ color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}>Registrujte se</span>
+        <h1 className="auth-title">Prijava</h1>
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label htmlFor="login-username">Korisničko ime</label>
+            <input
+              id="login-username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="login-password">Lozinka</label>
+            <input
+              id="login-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+          <button type="submit" className="btn-primary">Prijavi se</button>
+        </form>
+        <p className="auth-switch">
+          Nemate nalog? <button type="button" onClick={onSwitchToRegister}>Registrujte se</button>
         </p>
-      </form>
+      </div>
     </div>
   );
 }

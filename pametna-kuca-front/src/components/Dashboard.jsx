@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import { API_URL } from '../config';
 
 const MAX_CHART_POINTS = 20;
@@ -16,11 +16,7 @@ function Dashboard({ onLogout, onShowHistory }) {
 
       const env = data.env_sensor_1;
       if (env && env.temperature != null) {
-        const point = {
-          time: new Date().toLocaleTimeString(),
-          temperature: env.temperature,
-          humidity: env.humidity
-        };
+        const point = { temperature: env.temperature, humidity: env.humidity };
         setChartData((prev) => [...prev, point].slice(-MAX_CHART_POINTS));
       }
     } catch (error) {
@@ -34,82 +30,110 @@ function Dashboard({ onLogout, onShowHistory }) {
     return () => clearInterval(interval);
   }, []);
 
+  const env = devices.env_sensor_1;
+  const motion = devices.motion_sensor_1;
+  const flame = devices.flame_sensor_1;
+  const rfid = devices.rfid_reader_1;
+
+  const hasData = Object.keys(devices).length > 0;
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial', maxWidth: '600px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Kontrolni Panel - Pametna Kuća</h2>
-        <div>
-          <button onClick={onShowHistory} style={{ padding: '5px 10px', cursor: 'pointer', marginRight: '8px' }}>Istorija</button>
-          <button onClick={onLogout} style={{ padding: '5px 10px', cursor: 'pointer' }}>Odjavi se</button>
+    <div className="dashboard">
+      <div className="dashboard-header">
+        <div className="brand">
+          <span className="brand-dot" />
+          <span className="brand-name">Pametna kuća</span>
+        </div>
+        <div className="header-actions">
+          <button className="btn-ghost" onClick={onShowHistory}>Istorija</button>
+          <button className="btn-text" onClick={onLogout}>Odjavi se</button>
         </div>
       </div>
-      <hr style={{ margin: '15px 0' }} />
 
-      <div>
-        {Object.keys(devices).length === 0 ? (
-          <p>Učitavanje uređaja sa servera...</p>
-        ) : (
-          Object.entries(devices).map(([id, info]) => (
-            <div key={id} style={{ border: '1px solid #ddd', padding: '15px', margin: '12px 0', borderRadius: '8px', background: '#fff' }}>
-              <h3>{id} ({info.type})</h3>
-
-              {/* 1. Temperatura i vlažnost */}
-              {info.type === 'temperature_humidity' && (
-                <div>
-                  <p>🌡️ Temperatura: <strong>{info.temperature}°C</strong></p>
-                  <p>💧 Vlažnost: <strong>{info.humidity}%</strong></p>
-
-                  {chartData.length > 1 && (
-                    <div style={{ width: '100%', height: 200, marginTop: '10px' }}>
-                      <ResponsiveContainer>
-                        <LineChart data={chartData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                          <YAxis tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="temperature" stroke="#e74c3c" name="Temperatura (°C)" dot={false} isAnimationActive={false} />
-                          <Line type="monotone" dataKey="humidity" stroke="#3498db" name="Vlažnost (%)" dot={false} isAnimationActive={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
+      {!hasData ? (
+        <p className="loading-note">Učitavanje uređaja sa servera...</p>
+      ) : (
+        <>
+          {env && (
+            <div className="hero-panel">
+              <div className="hero-readout">
+                <div className="hero-temp">
+                  {env.temperature}<span>°C</span>
                 </div>
-              )}
-
-              {/* 2. Senzor pokreta */}
-              {info.type === 'motion' && (
-                <div>
-                  <p>🏃 Status pokreta: <span style={{ color: info.motion_detected ? 'red' : 'green' }}>
-                    {info.motion_detected ? "DETEKTOVAN POKRET 🚨" : "Sve mirno 🟢"}
-                  </span></p>
-                  <p style={{ fontSize: '13px', color: '#666' }}>
-                    Poslednji pokret: {info.last_motion_at || "Nema zabeleženih pokreta"}
-                  </p>
+                <div className="hero-humidity">
+                  <div className="hero-humidity-value">{env.humidity}%</div>
+                  <div className="hero-humidity-label">vlažnost</div>
                 </div>
-              )}
+              </div>
 
-              {/* 3. Senzor plamena */}
-              {info.type === 'flame' && (
-                <div>
-                  <p>🔥 Status: <strong style={{ color: info.flame_detected ? 'red' : 'green' }}>
-                    {info.flame_detected ? "OPASNOST - DETEKTOVAN PLAMEN 🚨" : "Nema plamena 🟢"}
-                  </strong></p>
-                </div>
-              )}
-
-              {/* 4. RFID čitač (Ulazna vrata) */}
-              {info.type === 'rfid' && (
-                <div>
-                  <p>🚪 Ulazna vrata: <strong style={{ color: info.access_granted ? 'green' : 'red' }}>
-                    {info.access_granted ? "OTKLJUČANO 🔓" : "ZAKLJUČANO 🔒"}
-                  </strong></p>
-                  <p style={{ fontSize: '13px', color: '#666' }}>Poslednji tag: {info.last_tag || "Nema očitavanja"}</p>
+              {chartData.length > 1 && (
+                <div className="hero-chart">
+                  <ResponsiveContainer>
+                    <LineChart data={chartData}>
+                      <YAxis hide domain={['dataMin - 0.15', 'dataMax + 0.15']} />
+                      <Line
+                        type="monotone"
+                        dataKey="temperature"
+                        stroke="var(--accent)"
+                        strokeWidth={2}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               )}
             </div>
-          ))
-        )}
-      </div>
+          )}
+
+          <div className="panel-list">
+            {motion && (
+              <div className="panel-row">
+                <span className={`status-dot ${motion.motion_detected ? 'is-active' : ''}`} />
+                <div className="panel-row-body">
+                  <div className="panel-row-label">Pokret</div>
+                  <div className="panel-row-sub">
+                    {motion.last_motion_at ? `Poslednji put: ${motion.last_motion_at}` : 'Nema zabeleženih pokreta'}
+                  </div>
+                </div>
+                <div className={`panel-row-value ${motion.motion_detected ? 'is-alert' : 'is-safe'}`}>
+                  {motion.motion_detected ? 'Detektovan' : 'Mirno'}
+                </div>
+              </div>
+            )}
+
+            {flame && (
+              <div className={`panel-row ${flame.flame_detected ? 'is-alert' : ''}`}>
+                <span className={`status-dot ${flame.flame_detected ? 'is-active' : ''}`} />
+                <div className="panel-row-body">
+                  <div className="panel-row-label">Plamen</div>
+                  {flame.flame_detected && (
+                    <div className="panel-row-sub">Opasnost — proveriti odmah</div>
+                  )}
+                </div>
+                <div className={`panel-row-value ${flame.flame_detected ? 'is-alert' : 'is-safe'}`}>
+                  {flame.flame_detected ? 'Detektovan' : 'Nema'}
+                </div>
+              </div>
+            )}
+
+            {rfid && (
+              <div className="panel-row">
+                <span className={`status-dot ${rfid.access_granted ? '' : 'is-active'}`} />
+                <div className="panel-row-body">
+                  <div className="panel-row-label">Ulazna vrata</div>
+                  <div className="panel-row-sub">
+                    {rfid.last_tag ? `Poslednji tag: ${rfid.last_tag}` : 'Nema očitavanja'}
+                  </div>
+                </div>
+                <div className={`panel-row-value ${rfid.access_granted ? 'is-safe' : ''}`}>
+                  {rfid.access_granted ? 'Otključano' : 'Zaključano'}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
