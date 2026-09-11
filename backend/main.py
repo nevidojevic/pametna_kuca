@@ -49,6 +49,7 @@ class SensorUpdate(BaseModel):
     motion_detected: Optional[bool] = None
     flame_detected: Optional[bool] = None
     tag_id: Optional[str] = None
+    access_granted: Optional[bool] = None
     camera_status: Optional[str] = None
     snapshot_url: Optional[str] = None
 
@@ -146,7 +147,7 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
 
     if update.tag_id is not None:
         device.last_tag = update.tag_id
-        access_allowed = (update.tag_id == "ADMIN_CARD_123")
+        access_allowed = (update.tag_id == "454268117939")
         device.access_granted = access_allowed
 
         # Automatski upis u istoriju pristupa (RFID / vrata)
@@ -155,6 +156,8 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
             access_granted=access_allowed
         )
         db.add(access_log)
+    elif update.access_granted is not None:
+        device.access_granted = update.access_granted
 
     if update.camera_status is not None:
         device.status = update.camera_status

@@ -141,6 +141,8 @@ def monitor_flame():
 
 rfid_reader = SimpleMFRC522()
 
+RFID_UNLOCK_DURATION = 5  # sekundi koliko vrata ostaju "otključana" pre auto-zaključavanja
+
 
 def monitor_rfid():
     print("Prislonite RFID karticu...")
@@ -152,13 +154,16 @@ def monitor_rfid():
 
             requests.put(RFID_API_URL, json={"tag_id": tag_id}, timeout=5)
 
+            time.sleep(RFID_UNLOCK_DURATION)
+
+            requests.put(RFID_API_URL, json={"access_granted": False}, timeout=5)
+            print("RFID -> Vrata automatski zaključana")
+
         except requests.RequestException as error:
             print(f"Greška ka serveru: {error}")
 
         except Exception as error:
             print(f"Greška RFID čitača: {error}")
-
-        time.sleep(2)  # Pauza da ne šalje višestruke zahteve za istu karticu
 
 
 # ==========================================

@@ -42,7 +42,7 @@ def simulate_flame():
 
 def simulate_rfid_access():
     # Simulacija prislanjanja RFID kartice
-    tags = ["ADMIN_CARD_123", "GUEST_CARD_999", "UNKNOWN_TAG"]
+    tags = ["454268117939", "GUEST_CARD_999", "UNKNOWN_TAG"]
     tag = random.choice(tags)
     payload = {"tag_id": tag}
     try:

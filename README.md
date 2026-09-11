@@ -125,7 +125,7 @@ USB kamera preko USB porta, ili Pi Camera modul preko CSI konektora.
 Kada RFID čitač pošalje `tag_id` backendu, server upoređuje ga sa ovlašćenom karticom:
 
 ```python
-access_allowed = (update.tag_id == "ADMIN_CARD_123")
+access_allowed = (update.tag_id == "454268117939")
 ```
 
 Rezultat (`access_granted`) se upisuje na uređaj i u `access_logs` istoriju, tako da se svako prislanjanje kartice može naknadno proveriti kroz `GET /history/rfid/`.
