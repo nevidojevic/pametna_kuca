@@ -153,7 +153,26 @@ RPi, a ne default vrednosti (22.0/45.0) iz `backend/main.py`.
 
 ## Napomena
 
-Isti pattern važi i za pokret (`rpi/motion_sensor.py`) i za NFC/kameru —
-sve ide na isti backend preko `PUT /devices/{id}`, pa kad ovo proradi za
-temperaturu, ostali senzori se povezuju identično (samo im treba promeniti
-isti `IP_ADRESA_SERVERA` placeholder).
+Isti pattern važi i za pokret (`rpi/motion_sensor.py`), RFID
+(`rpi/rfid_reader.py`) i kameru — sve ide na isti backend preko
+`PUT /devices/{id}`, pa kad ovo proradi za temperaturu, ostali senzori se
+povezuju identično (samo im treba promeniti isti `IP_ADRESA_SERVERA`
+placeholder).
+
+## DHT11 + PIR na jednom RPi-ju
+
+Ako se dva senzora (DHT11 i PIR pokret) nalaze na istom Raspberry Pi-ju,
+`rpi/dht_sensor.py` ih pokreće paralelno preko `threading`, jer je
+`pir.wait_for_motion()` blokirajući poziv — bez posebnog thread-a bi
+zaustavio čitanje DHT11 senzora dok se ne detektuje pokret. Svaki senzor
+ima svoj GPIO pin (DHT11 na GPIO17, PIR na GPIO22) i svoj `API_URL` prema
+odgovarajućem uređaju u bazi (`env_sensor_1` / `motion_sensor_1`).
+
+## RFID čitač
+
+`rpi/rfid_reader.py` koristi `mfrc522` biblioteku (MFRC522 modul je RFID
+čitač na 13.56MHz, radi sa Mifare karticama). Šalje pročitani ID kartice na
+`PUT /devices/rfid_reader_1` sa poljem `tag_id`. Backend u
+`backend/main.py` upoređuje `tag_id` sa `"ADMIN_CARD_123"` da odredi
+`access_granted` (otključana/zaključana vrata) i to upisuje u
+`access_logs` istoriju (`GET /history/rfid/`).

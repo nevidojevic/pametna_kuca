@@ -55,8 +55,8 @@ function Dashboard({ onLogout }) {
                 </div>
               )}
 
-              {/* 3. NFC čitač (Ulazna vrata) */}
-              {info.type === 'nfc' && (
+              {/* 3. RFID čitač (Ulazna vrata) */}
+              {info.type === 'rfid' && (
                 <div>
                   <p>🚪 Ulazna vrata: <strong style={{ color: info.access_granted ? 'green' : 'red' }}>
                     {info.access_granted ? "OTKLJUČANO 🔓" : "ZAKLJUČANO 🔒"}

@@ -29,14 +29,14 @@ def simulate_motion():
         print("Greška ka serveru:", e)
 
 
-def simulate_nfc_access():
-    # Simulacija prislanjanja NFC kartice
+def simulate_rfid_access():
+    # Simulacija prislanjanja RFID kartice
     tags = ["ADMIN_CARD_123", "GUEST_CARD_999", "UNKNOWN_TAG"]
     tag = random.choice(tags)
     payload = {"tag_id": tag}
     try:
-        requests.put(f"{API_URL}/nfc_reader_1", json=payload)
-        print(f"[NFC] Očitan tag: {tag}")
+        requests.put(f"{API_URL}/rfid_reader_1", json=payload)
+        print(f"[RFID] Očitan tag: {tag}")
     except Exception as e:
         print("Greška ka serveru:", e)
 
@@ -61,9 +61,9 @@ if __name__ == "__main__":
         simulate_temperature_humidity()
         simulate_motion()
 
-        # Povremeno simuliraj NFC i kameru (ne u svakom ciklusu)
+        # Povremeno simuliraj RFID i kameru (ne u svakom ciklusu)
         if random.random() > 0.6:
-            simulate_nfc_access()
+            simulate_rfid_access()
         if random.random() > 0.5:
             simulate_camera()
 

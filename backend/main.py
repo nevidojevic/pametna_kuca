@@ -59,7 +59,7 @@ def startup_db():
     initial_devices = [
         {"id": "env_sensor_1", "type": "temperature_humidity", "temperature": 22.0, "humidity": 45.0},
         {"id": "motion_sensor_1", "type": "motion", "motion_detected": False},
-        {"id": "nfc_reader_1", "type": "nfc", "last_tag": None, "access_granted": False},
+        {"id": "rfid_reader_1", "type": "rfid", "last_tag": None, "access_granted": False},
         {"id": "camera_1", "type": "camera", "status": "IDLE", "last_snapshot": None}
     ]
     for dev in initial_devices:
@@ -143,7 +143,7 @@ def update_device_data(device_id: str, update: SensorUpdate, db: Session = Depen
         access_allowed = (update.tag_id == "ADMIN_CARD_123")
         device.access_granted = access_allowed
 
-        # Automatski upis u istoriju pristupa (NFC / vrata)
+        # Automatski upis u istoriju pristupa (RFID / vrata)
         access_log = AccessLogModel(
             tag_id=update.tag_id,
             access_granted=access_allowed
@@ -166,8 +166,8 @@ def get_temperature_history(db: Session = Depends(get_db)):
     # Možeš vratiti sirove podatke ili izračunati min/max po danima
     return [{"temperature": l.temperature, "humidity": l.humidity, "time": l.timestamp.strftime("%Y-%m-%d %H:%M")} for l in logs]
 
-@app.get("/history/nfc/")
-def get_nfc_history(db: Session = Depends(get_db)):
+@app.get("/history/rfid/")
+def get_rfid_history(db: Session = Depends(get_db)):
     week_ago = datetime.utcnow() - timedelta(days=7)
     logs = db.query(AccessLogModel).filter(AccessLogModel.timestamp >= week_ago).all()
     return [{"tag_id": l.tag_id, "access_granted": l.access_granted, "time": l.timestamp.strftime("%Y-%m-%d %H:%M")} for l in logs]
