@@ -145,14 +145,18 @@ rfid_reader = SimpleMFRC522()
 def monitor_rfid():
     print("Prislonite RFID karticu...")
     while True:
-        id, text = rfid_reader.read()  # Čeka dok se kartica ne prisloni
-        tag_id = str(id)
-        print(f"Očitana RFID kartica ID: {tag_id}")
-
         try:
+            id, text = rfid_reader.read()  # Čeka dok se kartica ne prisloni
+            tag_id = str(id)
+            print(f"Očitana RFID kartica ID: {tag_id}")
+
             requests.put(RFID_API_URL, json={"tag_id": tag_id}, timeout=5)
+
         except requests.RequestException as error:
             print(f"Greška ka serveru: {error}")
+
+        except Exception as error:
+            print(f"Greška RFID čitača: {error}")
 
         time.sleep(2)  # Pauza da ne šalje višestruke zahteve za istu karticu
 
