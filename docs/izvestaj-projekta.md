@@ -3,7 +3,7 @@
 | _(popuniti)_ | _(popuniti)_ |
 | _(popuniti)_ | _(popuniti)_ |
 
-**Link ka GitHubu:** _(popuniti)_
+**Link ka GitHubu:** https://github.com/nevidojevic/pametna_kuca
 
 ---
 
@@ -13,11 +13,11 @@
 
 Potrebno je kreirati veb servis koji u JSON formatu prikazuje informacije prikupljene iz pametnog okruženja doma. Sistem simulira pametnu kuću i koristi više senzora za praćenje uslova u okruženju i kontrolu pristupa.
 
-Raspberry Pi prikuplja podatke sa DHT11 senzora (temperatura i vlažnost vazduha), PIR senzora (detekcija pokreta) i RFID čitača (kontrola pristupa ulaznim vratima), a po potrebi aktivira i kameru koja pravi snimak pri detekciji pokreta.
+Raspberry Pi prikuplja podatke sa DHT11 senzora (temperatura i vlažnost vazduha), PIR senzora (detekcija pokreta), senzora plamena i RFID čitača (kontrola pristupa ulaznim vratima).
 
-Raspberry Pi šalje očitane podatke FastAPI serveru putem HTTP zahteva (WiFi/LAN), a ne putem serijske veze — svaki senzor ima svoju Python skriptu koja direktno komunicira sa serverom. Server podatke čuva u SQLite bazi i izlaže ih putem REST API-ja u JSON formatu. Veb aplikacija (React) prikazuje trenutno stanje svih uređaja i osvežava ga na svake 3 sekunde.
+Raspberry Pi šalje očitane podatke FastAPI serveru putem HTTP zahteva, a ne putem serijske veze — backend radi na istom Raspberry Pi-ju kao i senzori, dok se veb aplikacija (front) otvara sa drugog uređaja na mreži. Server podatke čuva u SQLite bazi i izlaže ih putem REST API-ja u JSON formatu. Veb aplikacija (React) prikazuje trenutno stanje svih uređaja uživo (osvežavanje na 3 sekunde), uključujući grafik temperature i vlažnosti u realnom vremenu, i istoriju prošlih očitavanja.
 
-Sistem može da registruje normalne uslove (temperatura/vlažnost), prisustvo pokreta, dozvoljen ili odbijen pristup putem RFID kartice, kao i status kamere.
+Sistem registruje: temperaturu i vlažnost (sa live grafikom), prisustvo pokreta (sa tačnim vremenom poslednje detekcije), prisustvo plamena, i dozvoljen ili odbijen pristup putem RFID kartice (sa automatskim zaključavanjem vrata 5 sekundi nakon očitavanja).
 
 ### Projektovanje
 
@@ -35,7 +35,10 @@ Pinovi na koje su senzori povezani:
 | PIR | OUT | GPIO22 |
 | PIR | VCC | 5V |
 | PIR | GND | GND |
-| RFID MFRC522 | SDA (SS) | GPIO8 (CE0) |
+| Senzor plamena | DO | GPIO6 |
+| Senzor plamena | VCC | 5V |
+| Senzor plamena | GND | GND |
+| RFID MFRC522 | SDA (SS) | GPIO8 |
 | RFID MFRC522 | SCK | GPIO11 |
 | RFID MFRC522 | MOSI | GPIO10 |
 | RFID MFRC522 | MISO | GPIO9 |
@@ -49,12 +52,12 @@ Pametni uređaji potrebni za realizaciju primera dati su u Tabeli 1.
 
 | Naziv komponente | Opis | Količina |
 |-------------------|------|-----------|
-| Raspberry Pi mikroračunar | 3/4 Model B | 1 |
+| Raspberry Pi mikroračunar | 3/4/5 Model B | 1 |
 | DHT11 | Senzor temperature i vlažnosti vazduha | 1 |
 | PIR senzor | Senzor pokreta | 1 |
+| Senzor plamena | Digitalni izlaz, detekcija IR zračenja plamena | 1 |
 | RFID čitač MFRC522 | Čitač kartica na 13.56 MHz, kontrola pristupa | 1 |
 | RFID kartica/privezak | Za prislanjanje na čitač | 1+ |
-| Kamera (USB ili Pi Camera) | Snimanje fotografije pri pokretu | 1 |
 | Proto ploča | Za povezivanje elektronskih elemenata | 1 |
 | Kablovi | Muško-Ženski | 5 |
 | Kablovi | Muško-Muški | 3 |
@@ -63,109 +66,112 @@ Pametni uređaji potrebni za realizaciju primera dati su u Tabeli 1.
 
 ### 1.3 Scenario
 
-DHT11 senzor i PIR senzor pokreta povezani su na isti Raspberry Pi i rade paralelno (preko Python `threading` modula), jer PIR senzor koristi blokirajući poziv (`wait_for_motion()`) koji bi, bez posebne niti, zaustavio čitanje DHT11 senzora dok se ne detektuje pokret.
-
-RFID čitač i kamera rade kao zasebne skripte koje se pokreću nezavisno.
+Svi senzori (DHT11, PIR, plamen, RFID) povezani su na isti Raspberry Pi i rade paralelno unutar jedne skripte, [`rpi/all_sensors.py`](../rpi/all_sensors.py), svaki u svom `threading` nitu — PIR i RFID koriste blokirajuće pozive (čekaju na pokret, odnosno na karticu), pa bi bez odvojenih niti zaustavili čitanje ostalih senzora dok čekaju.
 
 **Stanja uređaja koja se prikazuju na dashboard-u:**
 
 | Uređaj (id) | Tip | Prikazano stanje |
 |-------------|-----|-------------------|
-| `env_sensor_1` | `temperature_humidity` | Temperatura (°C) i vlažnost (%) |
-| `motion_sensor_1` | `motion` | "Sve mirno" / "Detektovan pokret" |
+| `env_sensor_1` | `temperature_humidity` | Temperatura (°C) i vlažnost (%), sa live grafikom |
+| `motion_sensor_1` | `motion` | "Mirno" / "Detektovan pokret" + tačno vreme poslednje detekcije |
+| `flame_sensor_1` | `flame` | "Nema plamena" / "Opasnost — detektovan plamen" |
 | `rfid_reader_1` | `rfid` | "Otključano" / "Zaključano" + poslednji očitani tag |
-| `camera_1` | `camera` | `IDLE` / `RECORDING` / `MOTION_SNAPSHOT` |
 
-Svaka skripta na Raspberry Pi-ju šalje očitane vrednosti FastAPI serveru putem HTTP `PUT` zahteva na adresu:
+Svaka nit u skripti šalje očitane vrednosti FastAPI serveru putem HTTP `PUT` zahteva na adresu:
 
 ```text
-http://IP_ADRESA_SERVERA:8000/devices/{id_uređaja}
+http://127.0.0.1:8000/devices/{id_uređaja}
 ```
 
-**DHT11 + PIR (`rpi/dht_sensor.py`):**
+(Backend radi na istom Raspberry Pi-ju kao i senzori, zato `127.0.0.1`.)
+
+**DHT11 (`rpi/all_sensors.py`):**
 
 ```python
-import time
-import threading
-import requests
 import adafruit_dht
 import board
-from gpiozero import MotionSensor
-
-ENV_API_URL = "http://IP_ADRESA_SERVERA:8000/devices/env_sensor_1"
-MOTION_API_URL = "http://IP_ADRESA_SERVERA:8000/devices/motion_sensor_1"
 
 dht_device = adafruit_dht.DHT11(board.D17)
-
 
 def read_dht():
     while True:
         try:
             temperature = dht_device.temperature
             humidity = dht_device.humidity
-
             if temperature is not None and humidity is not None:
-                payload = {"temperature": temperature, "humidity": humidity}
-                response = requests.put(ENV_API_URL, json=payload, timeout=5)
-                print(f"DHT11 -> Temperatura: {temperature}°C, Vlaga: {humidity}% (HTTP {response.status_code})")
-
+                requests.put(ENV_API_URL, json={"temperature": temperature, "humidity": humidity}, timeout=5)
         except RuntimeError as error:
             print(f"Greška DHT11 senzora: {error.args[0]}")
-        except requests.RequestException as error:
-            print(f"Greška ka ENV serveru: {error}")
-
         time.sleep(5)
-
-
-pir = MotionSensor(22)
-
-
-def send_motion(detected):
-    response = requests.put(MOTION_API_URL, json={"motion_detected": detected}, timeout=5)
-    print(f"PIR -> Pokret detektovan: {detected} (HTTP {response.status_code})")
-
-
-def monitor_pir():
-    while True:
-        pir.wait_for_motion()
-        send_motion(True)
-        pir.wait_for_no_motion()
-        send_motion(False)
-
-
-threading.Thread(target=read_dht, daemon=True).start()
-threading.Thread(target=monitor_pir, daemon=True).start()
-
-while True:
-    time.sleep(1)
 ```
 
-**RFID čitač (`rpi/rfid_reader.py`):**
+**PIR sa softverskim timeoutom (`rpi/all_sensors.py`):**
+
+PIR moduli imaju sopstveno hardversko "hold" vreme koje je često dugo i nepredvidivo. Umesto oslanjanja na to, skripta sama prati vreme poslednjeg pokreta i javlja "nema pokreta" tačno 5 sekundi kasnije:
 
 ```python
-import RPi.GPIO as GPIO
-from mfrc522 import SimpleMFRC522
-import requests
-import time
+from gpiozero import MotionSensor
 
-API_URL = "http://IP_ADRESA_SERVERA:8000/devices/rfid_reader_1"
-reader = SimpleMFRC522()
+pir = MotionSensor(22)
+MOTION_TIMEOUT = 5
 
-try:
+def monitor_pir():
+    last_motion_time = None
+    motion_sent = False
     while True:
-        id, text = reader.read()
+        if pir.is_active:
+            last_motion_time = time.time()
+            if not motion_sent:
+                send_motion(True)
+                motion_sent = True
+        elif motion_sent and time.time() - last_motion_time >= MOTION_TIMEOUT:
+            send_motion(False)
+            motion_sent = False
+        time.sleep(0.5)
+```
+
+Svaka detekcija pokreta upisuje i tačan trenutak (`last_motion_at`) u bazu.
+
+**Senzor plamena (`rpi/all_sensors.py`):**
+
+```python
+from gpiozero import DigitalInputDevice
+
+flame_sensor = DigitalInputDevice(6, pull_up=True)
+
+def monitor_flame():
+    while True:
+        flame_sensor.wait_for_active()
+        send_flame_status(True)
+        flame_sensor.wait_for_inactive()
+        send_flame_status(False)
+```
+
+Za razliku od PIR-a, plamen nema veštački timeout — prati hardver uživo, jer bi timeout mogao pogrešno da prikaže "nema plamena" dok vatra i dalje gori.
+
+**RFID čitač sa auto-zaključavanjem (`rpi/all_sensors.py`):**
+
+```python
+from mfrc522 import SimpleMFRC522
+
+rfid_reader = SimpleMFRC522()
+RFID_UNLOCK_DURATION = 5
+
+def monitor_rfid():
+    while True:
+        id, text = rfid_reader.read()
         tag_id = str(id)
-        requests.put(API_URL, json={"tag_id": tag_id}, timeout=5)
-        print(f"Očitana RFID kartica ID: {tag_id}")
-        time.sleep(2)
-except KeyboardInterrupt:
-    GPIO.cleanup()
+        requests.put(RFID_API_URL, json={"tag_id": tag_id}, timeout=5)
+
+        time.sleep(RFID_UNLOCK_DURATION)
+
+        requests.put(RFID_API_URL, json={"access_granted": False}, timeout=5)
 ```
 
 Server, po prijemu `tag_id`, upoređuje ga sa ovlašćenom karticom i određuje da li se vrata otključavaju:
 
 ```python
-access_allowed = (update.tag_id == "ADMIN_CARD_123")
+access_allowed = (update.tag_id == "454268117939")
 device.access_granted = access_allowed
 ```
 
@@ -180,7 +186,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 i izlaže podatke u JSON formatu na adresi:
 
 ```text
-http://IP_ADRESA_SERVERA:8000/devices/
+http://IP_ADRESA_RASPBERRY_PIJA:8000/devices/
 ```
 
 Primer dobijenog JSON rezultata:
@@ -188,13 +194,13 @@ Primer dobijenog JSON rezultata:
 ```json
 {
   "env_sensor_1": { "type": "temperature_humidity", "temperature": 22.4, "humidity": 48.0 },
-  "motion_sensor_1": { "type": "motion", "motion_detected": false },
-  "rfid_reader_1": { "type": "rfid", "last_tag": "123456789", "access_granted": true },
-  "camera_1": { "type": "camera", "status": "IDLE", "last_snapshot": null }
+  "motion_sensor_1": { "type": "motion", "motion_detected": false, "last_motion_at": "2026-09-11 14:32:07" },
+  "flame_sensor_1": { "type": "flame", "flame_detected": false },
+  "rfid_reader_1": { "type": "rfid", "last_tag": "454268117939", "access_granted": true }
 }
 ```
 
-React veb aplikacija (`pametna-kuca-front`) povlači ove podatke sa `GET /devices/` na svake 3 sekunde i prikazuje ih korisniku na dashboard-u.
+React veb aplikacija (`pametna-kuca-front`) povlači ove podatke sa `GET /devices/` na svake 3 sekunde i prikazuje ih korisniku na dashboard-u, uz live grafik temperature (izgrađen iz istog redovnog osvežavanja) i posebnu stranicu za istoriju (`GET /history/temperature/`, `GET /history/rfid/`).
 
 ---
 

@@ -148,11 +148,13 @@ Raspberry Pi ne prima podatke od servera — on ih **šalje**. Sve skripte za se
 
 `rpi/simulator.py` ostaje odvojeno — simulira sve senzore bez hardvera, za testiranje.
 
-Backend u skripti gleda `127.0.0.1` jer radi na istom RPi-ju kao i senzori (detaljno opisano u [docs/rpi-povezivanje.md](docs/rpi-povezivanje.md)).
+Backend u skripti gleda `127.0.0.1` jer radi na istom RPi-ju kao i senzori (detaljno opisano u [docs/rpi-povezivanje.md](docs/rpi-povezivanje.md)). Za korak-po-korak uputstvo za pokretanje celog sistema, videti [docs/pokretanje.md](docs/pokretanje.md).
 
 ---
 
 ## Pokretanje projekta
+
+> Kratak pregled ispod; za detaljno korak-po-korak uputstvo (uključujući poznate probleme i njihova rešenja) videti [docs/pokretanje.md](docs/pokretanje.md).
 
 ### Backend (FastAPI)
 
@@ -247,7 +249,9 @@ pametna_kuca/
 │       └── App.jsx
 │
 ├── docs/
-│   └── rpi-povezivanje.md   # Detaljno uputstvo za povezivanje RPi-ja sa backendom
+│   ├── pokretanje.md        # Korak-po-korak uputstvo za pokretanje sistema
+│   ├── rpi-povezivanje.md   # Arhitektura: kako i zašto su RPi/backend/front povezani
+│   └── izvestaj-projekta.md # Formalni izveštaj za predaju
 │
 ├── requirements.txt
 └── README.md
