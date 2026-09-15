@@ -145,6 +145,12 @@ def monitor_rfid():
     print("Prislonite RFID karticu...")
     while True:
         try:
+            # Resetuje registre/antenu čitača preko VEĆ otvorene SPI veze
+            # (ne otvara novu - to je ono što je ranije pokvarilo čitanje).
+            # Bez ovoga čip ume da "zaglavi" posle prve uspešne komunikacije
+            # i tiho vraća "nema kartice" zauvek, i kad se kartica prisloni.
+            rfid_reader.READER.MFRC522_Init()
+
             id, text = rfid_reader.read()  # Čeka dok se kartica ne prisloni
             tag_id = str(id)
             print(f"Očitana RFID kartica ID: {tag_id}")
