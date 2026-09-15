@@ -1,5 +1,6 @@
 import time
 import threading
+import queue
 import requests
 import adafruit_dht
 import board
@@ -139,6 +140,18 @@ def monitor_flame():
 rfid_reader = SimpleMFRC522()
 
 RFID_UNLOCK_DURATION = 5  # sekundi koliko vrata ostaju "otključana" pre auto-zaključavanja
+RFID_READ_TIMEOUT = 15  # sekundi - ako reader.read() ne vrati ništa za ovo vreme, odustaje se od tog pokušaja
+
+
+def _blocking_read(result_queue):
+    # Ovo se izvršava u pomoćnoj niti jer reader.read() ume da se
+    # zaglavi zauvek u internoj petlji biblioteke (bez izuzetka, bez
+    # povratka) - tada glavna nit napusti join() po timeout-u i ova
+    # nit ostaje "obešena" u pozadini kao daemon, bezopasno.
+    try:
+        result_queue.put(rfid_reader.read())
+    except Exception as error:
+        result_queue.put(error)
 
 
 def monitor_rfid():
@@ -147,11 +160,26 @@ def monitor_rfid():
         try:
             # Resetuje registre/antenu čitača preko VEĆ otvorene SPI veze
             # (ne otvara novu - to je ono što je ranije pokvarilo čitanje).
-            # Bez ovoga čip ume da "zaglavi" posle prve uspešne komunikacije
-            # i tiho vraća "nema kartice" zauvek, i kad se kartica prisloni.
             rfid_reader.READER.MFRC522_Init()
 
-            id, text = rfid_reader.read()  # Čeka dok se kartica ne prisloni
+            result_queue = queue.Queue(maxsize=1)
+            read_thread = threading.Thread(
+                target=_blocking_read,
+                args=(result_queue,),
+                daemon=True
+            )
+            read_thread.start()
+            read_thread.join(timeout=RFID_READ_TIMEOUT)
+
+            if read_thread.is_alive():
+                print(f"RFID čitanje predugo traje (>{RFID_READ_TIMEOUT}s) - odustajem i pokušavam ponovo.")
+                continue
+
+            result = result_queue.get()
+            if isinstance(result, Exception):
+                raise result
+            id, text = result
+
             tag_id = str(id)
             print(f"Očitana RFID kartica ID: {tag_id}")
 
